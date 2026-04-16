@@ -1,0 +1,26 @@
+// Reglas iniciales de Cloud Firestore para UnityEvents (Fase A).
+//
+// Principio: solo usuarios autenticados acceden a sus propios documentos en /users/{uid}.
+// En fases posteriores se amplian estas reglas para eventos, comentarios, tickets, etc.
+//
+// Para publicarlas desde la raiz del repo (requiere Firebase CLI):
+//   firebase deploy --only firestore:rules
+//
+// O bien pegalas manualmente en Firebase Console -> Firestore -> Rules.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Coleccion /users: cada usuario puede leer y escribir solo su propio documento.
+    match /users/{userId} {
+      allow read:  if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Cualquier otro path por ahora queda cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

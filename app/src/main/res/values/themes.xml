@@ -1,16 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tema XML base para Android.
+    Como la app se construye 100% en Jetpack Compose + Material 3, este tema solo provee
+    una base minima (sin action bar) para el launcher y el splash. El look real lo maneja
+    `UnityEventsTheme` en core/theme/Theme.kt.
+-->
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.UnityEvents" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_700</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
+    <style name="Theme.UnityEvents" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Status bar transparente: Compose controla su apariencia con insets. -->
+        <item name="android:statusBarColor" tools:targetApi="21">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
+        <item name="android:navigationBarColor" tools:targetApi="21">@android:color/transparent</item>
     </style>
 </resources>
