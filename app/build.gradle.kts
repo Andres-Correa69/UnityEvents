@@ -124,6 +124,23 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
 
+    // --- Imagenes (Coil) ---
+    implementation(libs.coil.compose)
+
+    // --- QR ---
+    implementation(libs.zxing.core)
+
+    // --- Camara + ML Kit Barcode (escaner de QR en tiempo real) ---
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.accompanist.permissions)
+    // Guava provee ListenableFuture, tipo de retorno de ProcessCameraProvider.getInstance().
+    // Sin esta dep, Kotlin no puede resolver .addListener() / .get() sobre el future.
+    implementation(libs.guava)
+
     // --- Tests unitarios ---
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

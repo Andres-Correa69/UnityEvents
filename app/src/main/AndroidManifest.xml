@@ -2,8 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Firebase Auth y Firestore requieren conexion a internet. -->
+    <!-- Firebase Auth/Firestore/Storage requieren internet. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Camara: la usa el escaner de QR (feature moderador). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
         android:name=".UnityEventsApp"
@@ -17,7 +22,6 @@
         android:theme="@style/Theme.UnityEvents"
         tools:targetApi="34">
 
-        <!-- Activity principal: punto de entrada del launcher. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

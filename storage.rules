@@ -1,24 +1,30 @@
-// Reglas iniciales de Firebase Storage para UnityEvents (Fase A).
+// Reglas de Firebase Storage para UnityEvents.
 //
-// Aunque en Fase A todavia no subimos archivos, dejamos el servicio inicializado y sus
-// reglas listas para Fase B/C (foto de perfil, imagenes de eventos, etc.).
-//
-// Principio: solo el propio usuario puede escribir en su carpeta personal /users/{uid}/;
-// cualquier usuario autenticado puede leerla (asi aparece el avatar a otros).
+// Buckets usados:
+//   /users/{uid}/avatar.jpg       → foto de perfil; solo el dueno escribe, cualquier autenticado lee.
+//   /events/{uid}/{eventId}.jpg   → imagen del evento creado por el usuario {uid}.
 //
 // Publica con: firebase deploy --only storage
+// (o pega este archivo manualmente en Storage -> Rules en Firebase Console).
 
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Carpeta personal del usuario: escritura solo por el dueno, lectura para autenticados.
+    // --- Avatares de usuarios -----------------------------------------------
     match /users/{userId}/{allPaths=**} {
       allow read:  if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Cualquier otro path queda cerrado hasta que las features que lo usen definan sus reglas.
+    // --- Imagenes de eventos ------------------------------------------------
+    // El organizador de un evento sube la imagen al path events/{organizerId}/...
+    match /events/{organizerId}/{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == organizerId;
+    }
+
+    // --- Fallback ------------------------------------------------------------
     match /{allPaths=**} {
       allow read, write: if false;
     }

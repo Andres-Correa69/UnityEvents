@@ -17,7 +17,7 @@ import javax.inject.Inject
  * `@AndroidEntryPoint` permite que Hilt inyecte dependencias via `@Inject lateinit var`.
  */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class  MainActivity : ComponentActivity() {
 
     /** Cliente de Firebase Auth (proporcionado por `AppModule`). Usado para saber si hay sesion activa. */
     @Inject

@@ -34,6 +34,18 @@ googleServices = "4.4.2"             # Plugin que lee google-services.json
 credentials = "1.5.0"                # androidx.credentials
 googleid = "1.1.1"                   # com.google.android.libraries.identity.googleid
 
+# --- Carga de imagenes remotas ---
+coil = "2.7.0"                       # Coil 2 (Compose integration)
+
+# --- QR codes ---
+zxing = "3.5.3"                      # Generacion de codigos QR
+
+# --- Camara + ML Kit Barcode Scanner (lectura QR) ---
+cameraX = "1.4.1"
+mlkitBarcode = "17.3.0"
+accompanistPermissions = "0.37.0"    # Helpers de permisos en Compose
+guava = "33.3.1-android"             # CameraX devuelve ListenableFuture<T> (de Guava)
+
 # --- Testing ---
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -80,6 +92,21 @@ firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+
+# --- Imagenes (Coil) ---
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# --- QR generation (ZXing) ---
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+# --- CameraX + ML Kit (QR scanner) ---
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraX" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistPermissions" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 
 # --- Testing ---
 junit = { group = "junit", name = "junit", version.ref = "junit" }

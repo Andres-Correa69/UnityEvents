@@ -31,7 +31,9 @@ import androidx.core.view.WindowCompat
 @Composable
 fun UnityEventsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    // IMPORTANTE: `false` por defecto para respetar la paleta de marca de Stitch (#A436F2).
+    // Si se activa, Android 12+ reemplaza los colores con los del wallpaper (Material You).
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

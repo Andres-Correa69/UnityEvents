@@ -1,0 +1,10 @@
+{
+  "_comment": "Configuracion de Firebase CLI. Permite hacer `firebase deploy --only firestore:rules,firestore:indexes,storage` desde la raiz del repo.",
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}

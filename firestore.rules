@@ -1,24 +1,98 @@
-// Reglas iniciales de Cloud Firestore para UnityEvents (Fase A).
+// Reglas de Cloud Firestore para UnityEvents (Fase B+).
 //
-// Principio: solo usuarios autenticados acceden a sus propios documentos en /users/{uid}.
-// En fases posteriores se amplian estas reglas para eventos, comentarios, tickets, etc.
+// Principios:
+// - Todas las lecturas / escrituras requieren autenticacion.
+// - Los usuarios solo pueden modificar sus propios documentos; los moderadores tienen
+//   privilegios extra (aprobar eventos, cambiar estado de reportes, marcar tickets usados).
 //
-// Para publicarlas desde la raiz del repo (requiere Firebase CLI):
-//   firebase deploy --only firestore:rules
-//
-// O bien pegalas manualmente en Firebase Console -> Firestore -> Rules.
+// Estructura:
+//   /users/{uid}
+//   /users/{uid}/notifications/{id}
+//   /events/{eventId}
+//   /events/{eventId}/comments/{commentId}
+//   /tickets/{ticketId}
+//   /reports/{reportId}
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Coleccion /users: cada usuario puede leer y escribir solo su propio documento.
-    match /users/{userId} {
-      allow read:  if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // --- Helpers ------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    // Para decidir "es moderador" leemos el propio doc de usuario. El role se guarda
+    // como string "USER" | "MODERATOR" | "ADMIN".
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isModerator() {
+      return isSignedIn() && role() in ['MODERATOR', 'ADMIN'];
     }
 
-    // Cualquier otro path por ahora queda cerrado.
+    // --- /users -------------------------------------------------------------
+    match /users/{userId} {
+      // Cualquier autenticado puede leer perfiles (para mostrar organizador, autor de comentario, etc.).
+      allow read: if isSignedIn();
+      // Solo el propio usuario puede crear/actualizar sus datos.
+      // Excepcion: moderadores pueden cambiar roles (campo role) en otros usuarios.
+      allow create: if isSelf(userId);
+      allow update: if isSelf(userId) || isModerator();
+      allow delete: if false;
+
+      // Subcoleccion /notifications: solo el dueno la lee/escribe.
+      match /notifications/{notificationId} {
+        allow read, write: if isSelf(userId);
+      }
+    }
+
+    // --- /events ------------------------------------------------------------
+    match /events/{eventId} {
+      // Cualquier autenticado puede leer; los moderadores ven tambien los PENDING/REJECTED.
+      allow read: if isSignedIn();
+      // El autor puede crear su evento (status inicial PENDING).
+      allow create: if isSignedIn() && request.resource.data.organizerId == request.auth.uid
+                    && request.resource.data.status == 'PENDING';
+      // Update: autor (para editar datos) o moderador (para cambiar estado).
+      allow update: if isSignedIn() &&
+                    (resource.data.organizerId == request.auth.uid || isModerator());
+      // Delete: solo el autor o moderador.
+      allow delete: if isSignedIn() &&
+                    (resource.data.organizerId == request.auth.uid || isModerator());
+
+      // Subcoleccion /comments.
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isSignedIn() && (resource.data.authorId == request.auth.uid || isModerator());
+        allow delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isModerator());
+      }
+    }
+
+    // --- /tickets -----------------------------------------------------------
+    match /tickets/{ticketId} {
+      // Solo el dueno del ticket o un moderador (para validar en la entrada) pueden leerlo.
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isModerator());
+      // Crear: el usuario para si mismo.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Marcar usado: solo moderador.
+      allow update: if isModerator();
+      allow delete: if false;
+    }
+
+    // --- /reports -----------------------------------------------------------
+    match /reports/{reportId} {
+      // Cualquier autenticado puede crear un reporte.
+      allow create: if isSignedIn() && request.resource.data.reporterId == request.auth.uid;
+      // Solo moderadores pueden leer / actualizar reportes.
+      allow read, update: if isModerator();
+      allow delete: if false;
+    }
+
+    // --- Fallback: todo lo demas denegado. ---------------------------------
     match /{document=**} {
       allow read, write: if false;
     }
