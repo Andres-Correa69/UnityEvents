@@ -19,6 +19,14 @@ interface TicketsRepository {
      */
     suspend fun purchaseTicket(event: Event, userId: String, userName: String): Result<String>
 
-    /** Marca un ticket como usado (lo hace un moderador al escanear el QR en la entrada). */
-    suspend fun markTicketUsed(ticketId: String): Result<Ticket>
+    /**
+     * Marca un ticket como usado (lo hace el **organizador del evento** al escanear el QR
+     * en la entrada).
+     *
+     * @param ticketId id del ticket escaneado.
+     * @param expectedEventId id del evento desde el que se esta escaneando; si el ticket
+     *        pertenece a otro evento, se devuelve `Result.failure` con un mensaje claro
+     *        ("Ticket de otro evento").
+     */
+    suspend fun markTicketUsed(ticketId: String, expectedEventId: String): Result<Ticket>
 }

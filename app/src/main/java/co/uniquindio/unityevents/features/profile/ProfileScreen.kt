@@ -56,7 +56,6 @@ fun ProfileScreen(
     onSettings: () -> Unit,
     onLevels: () -> Unit,
     onModeratorDashboard: () -> Unit,
-    onQrScanner: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -87,8 +86,7 @@ fun ProfileScreen(
                 modifier = Modifier.padding(innerPadding),
                 onEditProfile = onEditProfile,
                 onLevels = onLevels,
-                onModeratorDashboard = onModeratorDashboard,
-                onQrScanner = onQrScanner
+                onModeratorDashboard = onModeratorDashboard
             )
         }
     }
@@ -100,7 +98,6 @@ private fun ProfileContent(
     onEditProfile: () -> Unit,
     onLevels: () -> Unit,
     onModeratorDashboard: () -> Unit,
-    onQrScanner: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val user = state.user!!
@@ -245,11 +242,6 @@ private fun ProfileContent(
                         headlineContent = { Text("Panel de moderacion") },
                         leadingContent = { Icon(Icons.Filled.AdminPanelSettings, null, tint = MaterialTheme.colorScheme.primary) },
                         modifier = Modifier.clickable(onClick = onModeratorDashboard)
-                    )
-                    ListItem(
-                        headlineContent = { Text("Escanear QR de tickets") },
-                        leadingContent = { Icon(Icons.Filled.QrCodeScanner, null, tint = MaterialTheme.colorScheme.primary) },
-                        modifier = Modifier.clickable(onClick = onQrScanner)
                     )
                 }
             }

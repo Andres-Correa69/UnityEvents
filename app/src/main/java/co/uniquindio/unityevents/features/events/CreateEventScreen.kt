@@ -25,11 +25,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -37,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -53,17 +57,32 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import co.uniquindio.unityevents.core.utils.Formatters
+import co.uniquindio.unityevents.core.utils.LocationHelper
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
 
@@ -72,7 +91,7 @@ import java.util.Date
  * campos requeridos. Al enviar, el evento se crea con status PENDING y queda a la espera
  * de aprobacion por un moderador.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun CreateEventScreen(
     onBack: () -> Unit,
@@ -218,6 +237,14 @@ fun CreateEventScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large
             )
+            Spacer(Modifier.height(16.dp))
+
+            // --- Picker de ubicacion (mapa + boton GPS) ---
+            LocationPicker(
+                lat = state.latitude,
+                lng = state.longitude,
+                onLocationPicked = viewModel::onLocationPicked
+            )
             Spacer(Modifier.height(12.dp))
 
             // Selector de fecha + hora.
@@ -328,3 +355,108 @@ fun CreateEventScreen(
         )
     }
 }
+
+/**
+ * Picker de ubicacion del evento:
+ *
+ * - Mapa clickeable: al tocar, coloca un marcador en ese punto y actualiza lat/lng.
+ * - Boton "Usar mi ubicacion": pide permiso de GPS y centra el marcador en la posicion actual.
+ *
+ * Posicion por defecto: Armenia (Quindio), Colombia.
+ */
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+private fun LocationPicker(
+    lat: Double?,
+    lng: Double?,
+    onLocationPicked: (Double, Double) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val locationHelper = remember { LocationHelper() }
+    val permission = rememberPermissionState(android.Manifest.permission.ACCESS_FINE_LOCATION)
+
+    val defaultLatLng = LatLng(4.5339, -75.6811)
+    val currentLatLng = if (lat != null && lng != null) LatLng(lat, lng) else null
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(currentLatLng ?: defaultLatLng, 14f)
+    }
+
+    // Cuando el estado externo cambia (p.ej. GPS acaba de darnos la ubicacion), recentramos el mapa.
+    LaunchedEffect(lat, lng) {
+        if (currentLatLng != null) {
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(currentLatLng, 16f)
+        }
+    }
+
+    Column {
+        Text("Ubicacion del evento *", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Toca el mapa para marcar el punto exacto, o usa tu ubicacion actual.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(8.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            GoogleMap(
+                modifier = Modifier.fillMaxSize(),
+                cameraPositionState = cameraPositionState,
+                properties = MapProperties(isMyLocationEnabled = permission.status.isGranted),
+                uiSettings = MapUiSettings(
+                    zoomControlsEnabled = false, // zoom con gestos / scroll / Ctrl+drag
+                    myLocationButtonEnabled = false,
+                    compassEnabled = false,
+                    zoomGesturesEnabled = true,
+                    scrollGesturesEnabled = true
+                ),
+                onMapClick = { latLng -> onLocationPicked(latLng.latitude, latLng.longitude) }
+            ) {
+                currentLatLng?.let { pos ->
+                    Marker(
+                        state = MarkerState(position = pos),
+                        title = "Ubicacion del evento"
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedButton(
+            onClick = {
+                if (permission.status.isGranted) {
+                    scope.launch {
+                        locationHelper.getCurrentLocation(context)?.let { coords ->
+                            onLocationPicked(coords.lat, coords.lng)
+                        }
+                    }
+                } else {
+                    permission.launchPermissionRequest()
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Filled.MyLocation, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.size(6.dp))
+            Text(
+                if (permission.status.isGranted) "Usar mi ubicacion actual"
+                else "Permitir acceso a mi ubicacion"
+            )
+        }
+
+        if (currentLatLng != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Ubicacion marcada: ${"%.5f".format(lat)}, ${"%.5f".format(lng)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+

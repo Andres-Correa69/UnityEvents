@@ -37,8 +37,11 @@ object AppDestinations {
 
     // --- Moderacion ---
     const val MODERATOR_DASHBOARD = "moderator_dashboard"
-    const val QR_SCANNER = "qr_scanner"
     const val MODERATION_LIST = "moderation_list/{filter}"
     fun moderationList(filter: String) = "moderation_list/$filter"
     const val REPORTS_LIST = "reports_list"
+
+    // --- Escaner QR (usado por el organizador del evento) ---
+    const val QR_SCANNER = "qr_scanner/{eventId}"
+    fun qrScanner(eventId: String) = "qr_scanner/$eventId"
 }

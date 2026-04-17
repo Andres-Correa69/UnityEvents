@@ -46,6 +46,11 @@ mlkitBarcode = "17.3.0"
 accompanistPermissions = "0.37.0"    # Helpers de permisos en Compose
 guava = "33.3.1-android"             # CameraX devuelve ListenableFuture<T> (de Guava)
 
+# --- Google Maps + Location ---
+mapsCompose = "4.4.1"                # Integracion Maps SDK + Jetpack Compose
+playServicesMaps = "19.0.0"
+playServicesLocation = "21.3.0"      # FusedLocationProvider para "Usar mi ubicacion"
+
 # --- Testing ---
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -107,6 +112,11 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
 accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistPermissions" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+
+# --- Google Maps + Location ---
+maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 # --- Testing ---
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -131,8 +131,7 @@ private fun NavGraphBuilder.mainGraph(
                 onEditProfile = { navController.navigate(AppDestinations.EDIT_PROFILE) },
                 onSettings = { navController.navigate(AppDestinations.SETTINGS) },
                 onLevels = { navController.navigate(AppDestinations.LEVELS) },
-                onModeratorDashboard = { navController.navigate(AppDestinations.MODERATOR_DASHBOARD) },
-                onQrScanner = { navController.navigate(AppDestinations.QR_SCANNER) }
+                onModeratorDashboard = { navController.navigate(AppDestinations.MODERATOR_DASHBOARD) }
             )
         }
 
@@ -140,14 +139,16 @@ private fun NavGraphBuilder.mainGraph(
         composable(
             route = AppDestinations.EVENT_DETAIL,
             arguments = listOf(navArgument("eventId") { type = NavType.StringType })
-        ) {
+        ) { backStack ->
+            val eventId = backStack.arguments?.getString("eventId").orEmpty()
             EventDetailScreen(
                 onBack = { navController.popBackStack() },
                 onTicketPurchased = { ticketId ->
                     navController.navigate(AppDestinations.ticketDigital(ticketId)) {
                         popUpTo(AppDestinations.HOME)
                     }
-                }
+                },
+                onScanTickets = { navController.navigate(AppDestinations.qrScanner(eventId)) }
             )
         }
         composable(AppDestinations.CREATE_EVENT) {
@@ -200,7 +201,10 @@ private fun NavGraphBuilder.mainGraph(
         composable(AppDestinations.REPORTS_LIST) {
             ReportsListScreen(onBack = { navController.popBackStack() })
         }
-        composable(AppDestinations.QR_SCANNER) {
+        composable(
+            route = AppDestinations.QR_SCANNER,
+            arguments = listOf(navArgument("eventId") { type = NavType.StringType })
+        ) {
             QrScannerScreen(onBack = { navController.popBackStack() })
         }
     }

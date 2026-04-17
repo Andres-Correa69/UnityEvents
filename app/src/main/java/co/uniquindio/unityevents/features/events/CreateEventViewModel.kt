@@ -24,6 +24,8 @@ data class CreateEventUiState(
     val category: String = "Academico",
     val placeName: String = "",
     val address: String = "",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val startDate: Date? = null,
     val price: String = "0",
     val capacity: String = "",
@@ -60,6 +62,9 @@ class CreateEventViewModel @Inject constructor(
     fun onPriceChange(v: String) = _state.update { it.copy(price = v.filter { c -> c.isDigit() }) }
     fun onCapacityChange(v: String) = _state.update { it.copy(capacity = v.filter { c -> c.isDigit() }) }
     fun onImagePicked(uri: Uri?) = _state.update { it.copy(imageUri = uri) }
+    /** Actualiza las coordenadas del evento (tap en el mapa o "Usar mi ubicacion"). */
+    fun onLocationPicked(lat: Double, lng: Double) =
+        _state.update { it.copy(latitude = lat, longitude = lng, errorMessage = null) }
     fun onErrorConsumed() = _state.update { it.copy(errorMessage = null) }
     fun onCreatedConsumed() = _state.update { it.copy(createdEventId = null) }
 
@@ -74,6 +79,8 @@ class CreateEventViewModel @Inject constructor(
             title.isBlank() -> "El titulo es obligatorio."
             description.length < 20 -> "La descripcion debe tener al menos 20 caracteres."
             placeName.isBlank() -> "Indica el lugar del evento."
+            s.latitude == null || s.longitude == null ->
+                "Marca la ubicacion en el mapa (toca o usa tu ubicacion actual)."
             s.startDate == null -> "Selecciona la fecha y hora del evento."
             else -> null
         }
@@ -96,6 +103,8 @@ class CreateEventViewModel @Inject constructor(
                 category = s.category,
                 placeName = placeName,
                 address = s.address.trim(),
+                latitude = s.latitude,
+                longitude = s.longitude,
                 startDate = s.startDate,
                 endDate = s.startDate, // simplificado en Fase B
                 price = s.price.toLongOrNull() ?: 0L,

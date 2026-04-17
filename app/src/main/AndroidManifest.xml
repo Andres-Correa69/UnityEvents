@@ -5,7 +5,11 @@
     <!-- Firebase Auth/Firestore/Storage requieren internet. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Camara: la usa el escaner de QR (feature moderador). -->
+    <!-- Ubicacion: la usa el Home (centrar mapa en el usuario) y el picker de crear evento. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Camara: la usa el escaner de QR (del organizador del evento). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -21,6 +25,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.UnityEvents"
         tools:targetApi="34">
+
+        <!-- Clave API de Google Maps. El valor se inyecta desde local.properties via manifestPlaceholder. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
 
         <activity
             android:name=".MainActivity"

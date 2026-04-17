@@ -35,17 +35,25 @@ service cloud.firestore {
 
     // --- /users -------------------------------------------------------------
     match /users/{userId} {
-      // Cualquier autenticado puede leer perfiles (para mostrar organizador, autor de comentario, etc.).
       allow read: if isSignedIn();
-      // Solo el propio usuario puede crear/actualizar sus datos.
-      // Excepcion: moderadores pueden cambiar roles (campo role) en otros usuarios.
       allow create: if isSelf(userId);
-      allow update: if isSelf(userId) || isModerator();
+      // Update: el dueno, un moderador, O cualquier autenticado que SOLO toque los
+      // campos de reputacion (points, level, updatedAt). Esto permite que el sistema
+      // de puntos se autoajuste cuando un usuario comenta tu evento, escanea tu ticket,
+      // aprueba tu evento, etc. No pueden tocar displayName, role, email, etc.
+      allow update: if isSelf(userId)
+        || isModerator()
+        || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['points', 'level', 'updatedAt']));
       allow delete: if false;
 
-      // Subcoleccion /notifications: solo el dueno la lee/escribe.
+      // Subcoleccion /notifications.
       match /notifications/{notificationId} {
-        allow read, write: if isSelf(userId);
+        // Leer/modificar: solo el destinatario.
+        allow read, update, delete: if isSelf(userId);
+        // Crear: cualquier autenticado (para que otros usuarios / repos puedan
+        // notificar al dueno — ej. nuevo comentario, evento aprobado, etc.).
+        allow create: if isSignedIn();
       }
     }
 
@@ -56,9 +64,14 @@ service cloud.firestore {
       // El autor puede crear su evento (status inicial PENDING).
       allow create: if isSignedIn() && request.resource.data.organizerId == request.auth.uid
                     && request.resource.data.status == 'PENDING';
-      // Update: autor (para editar datos) o moderador (para cambiar estado).
-      allow update: if isSignedIn() &&
-                    (resource.data.organizerId == request.auth.uid || isModerator());
+      // Update: el autor, un moderador, O cualquier autenticado que SOLO modifique
+      // el contador denormalizado `attendeesCount` (para que otros usuarios puedan
+      // comprar tickets sin ser organizadores).
+      allow update: if isSignedIn() && (
+        resource.data.organizerId == request.auth.uid ||
+        isModerator() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeesCount'])
+      );
       // Delete: solo el autor o moderador.
       allow delete: if isSignedIn() &&
                     (resource.data.organizerId == request.auth.uid || isModerator());
@@ -74,12 +87,19 @@ service cloud.firestore {
 
     // --- /tickets -----------------------------------------------------------
     match /tickets/{ticketId} {
-      // Solo el dueno del ticket o un moderador (para validar en la entrada) pueden leerlo.
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isModerator());
-      // Crear: el usuario para si mismo.
+      // Lee: el dueno del ticket, el organizador del evento (para escaneo) o un moderador.
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isModerator() ||
+        get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.organizerId == request.auth.uid
+      );
+      // Crear: el propio usuario (para si mismo).
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      // Marcar usado: solo moderador.
-      allow update: if isModerator();
+      // Actualizar (marcar usado): organizador del evento o moderador.
+      allow update: if isSignedIn() && (
+        isModerator() ||
+        get(/databases/$(database)/documents/events/$(resource.data.eventId)).data.organizerId == request.auth.uid
+      );
       allow delete: if false;
     }
 

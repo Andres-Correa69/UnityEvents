@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Paid
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,6 +31,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -68,6 +70,7 @@ import co.uniquindio.unityevents.domain.model.Event
 fun EventDetailScreen(
     onBack: () -> Unit,
     onTicketPurchased: (ticketId: String) -> Unit,
+    onScanTickets: () -> Unit,
     viewModel: EventDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -119,7 +122,8 @@ fun EventDetailScreen(
                 onBuyClick = viewModel::onBuyTicketClick,
                 onCommentTextChange = viewModel::onCommentTextChange,
                 onCommentRatingChange = viewModel::onCommentRatingChange,
-                onSubmitComment = viewModel::onSubmitComment
+                onSubmitComment = viewModel::onSubmitComment,
+                onScanTickets = onScanTickets
             )
         }
     }
@@ -133,8 +137,12 @@ private fun EventDetailContent(
     onCommentTextChange: (String) -> Unit,
     onCommentRatingChange: (Int) -> Unit,
     onSubmitComment: () -> Unit,
+    onScanTickets: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // El organizador es quien valida tickets con el escaner, por eso el boton solo aparece
+    // si el usuario actual creo el evento.
+    val isOrganizer = state.currentUser?.uid == event.organizerId && event.organizerId.isNotBlank()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -215,28 +223,49 @@ private fun EventDetailContent(
 
             Spacer(Modifier.height(24.dp))
 
-            // Boton primario: obtener ticket.
-            Button(
-                onClick = onBuyClick,
-                enabled = !state.isPurchasing && state.currentUser != null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = MaterialTheme.shapes.extraLarge,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                if (state.isPurchasing) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(22.dp)
+            if (isOrganizer) {
+                // Accion exclusiva del organizador: escanear tickets en la entrada del evento.
+                Button(
+                    onClick = onScanTickets,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
-                } else {
-                    Icon(Icons.Filled.ConfirmationNumber, contentDescription = null)
+                ) {
+                    Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
-                    Text("Obtener ticket", style = MaterialTheme.typography.labelLarge)
+                    Text("Escanear tickets de asistentes",
+                        style = MaterialTheme.typography.labelLarge)
+                }
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    "Este es tu evento. Los asistentes te mostraran su QR aqui.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                // Boton publico: obtener ticket.
+                Button(
+                    onClick = onBuyClick,
+                    enabled = !state.isPurchasing && state.currentUser != null,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    if (state.isPurchasing) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    } else {
+                        Icon(Icons.Filled.ConfirmationNumber, contentDescription = null)
+                        Spacer(Modifier.size(8.dp))
+                        Text("Obtener ticket", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
 

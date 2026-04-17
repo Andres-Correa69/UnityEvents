@@ -1,9 +1,12 @@
 package co.uniquindio.unityevents.data.repository
 
 import android.net.Uri
+import co.uniquindio.unityevents.core.service.ReputationService
 import co.uniquindio.unityevents.data.model.EventDto
+import co.uniquindio.unityevents.data.model.NotificationDto
 import co.uniquindio.unityevents.domain.model.Event
 import co.uniquindio.unityevents.domain.model.EventStatus
+import co.uniquindio.unityevents.domain.model.NotificationType
 import co.uniquindio.unityevents.domain.repository.EventsRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -23,7 +26,8 @@ import javax.inject.Singleton
 @Singleton
 class EventsRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    private val reputationService: ReputationService
 ) : EventsRepository {
 
     private val collection get() = firestore.collection(EVENTS)
@@ -87,10 +91,66 @@ class EventsRepositoryImpl @Inject constructor(
         status: EventStatus,
         rejectionReason: String?
     ): Result<Unit> = runCatching {
+        // Leemos primero para conocer al organizador (lo usaremos en puntos/notificaciones).
+        val snap = collection.document(eventId).get().await()
+        val organizerId = snap.getString("organizerId").orEmpty()
+        val title = snap.getString("title").orEmpty()
+
         val update = mutableMapOf<String, Any?>("status" to status.name)
         if (status == EventStatus.REJECTED) update["rejectionReason"] = rejectionReason.orEmpty()
         if (status == EventStatus.APPROVED) update["rejectionReason"] = null
         collection.document(eventId).set(update, SetOptions.merge()).await()
+
+        // Efectos colaterales segun el nuevo estado.
+        when (status) {
+            EventStatus.APPROVED -> {
+                // +50 al organizador.
+                if (organizerId.isNotBlank()) {
+                    reputationService.award(organizerId, ReputationService.Reward.EVENT_APPROVED)
+                    createEventNotification(
+                        userId = organizerId,
+                        type = NotificationType.EVENT_APPROVED,
+                        title = "Evento aprobado",
+                        body = "Tu evento \"$title\" ya es visible en el feed publico.",
+                        relatedId = eventId
+                    )
+                }
+            }
+            EventStatus.REJECTED -> {
+                if (organizerId.isNotBlank()) {
+                    createEventNotification(
+                        userId = organizerId,
+                        type = NotificationType.EVENT_REJECTED,
+                        title = "Evento rechazado",
+                        body = "Tu evento \"$title\" fue rechazado. Motivo: ${rejectionReason.orEmpty()}",
+                        relatedId = eventId
+                    )
+                }
+            }
+            else -> Unit
+        }
+    }
+
+    /** Crea una notificacion simple en la bandeja de un usuario. */
+    private suspend fun createEventNotification(
+        userId: String,
+        type: NotificationType,
+        title: String,
+        body: String,
+        relatedId: String
+    ) = runCatching {
+        val ref = firestore.collection("users").document(userId)
+            .collection("notifications").document()
+        ref.set(
+            NotificationDto(
+                id = ref.id,
+                type = type.name,
+                title = title,
+                body = body,
+                relatedId = relatedId,
+                read = false
+            )
+        ).await()
     }
 
     override suspend fun deleteEvent(eventId: String): Result<Unit> = runCatching {

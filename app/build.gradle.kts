@@ -31,6 +31,7 @@ val localProperties = Properties().apply {
     }
 }
 val webClientId: String = localProperties.getProperty("WEB_CLIENT_ID", "")
+val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY", "")
 
 android {
     namespace = "co.uniquindio.unityevents"
@@ -48,6 +49,10 @@ android {
         // Expone el Web Client ID (Firebase -> Auth -> Google) como constante en BuildConfig.
         // Asi nunca queda hardcodeado en el codigo fuente; se lee de local.properties.
         buildConfigField("String", "WEB_CLIENT_ID", "\"$webClientId\"")
+
+        // Inyecta la Maps API key al AndroidManifest (meta-data com.google.android.geo.API_KEY).
+        // El valor se lee de local.properties (NO commiteado).
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {
@@ -140,6 +145,11 @@ dependencies {
     // Guava provee ListenableFuture, tipo de retorno de ProcessCameraProvider.getInstance().
     // Sin esta dep, Kotlin no puede resolver .addListener() / .get() sobre el future.
     implementation(libs.guava)
+
+    // --- Google Maps + Location ---
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
 
     // --- Tests unitarios ---
     testImplementation(libs.junit)

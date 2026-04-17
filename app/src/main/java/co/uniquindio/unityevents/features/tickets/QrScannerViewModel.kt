@@ -1,5 +1,6 @@
 package co.uniquindio.unityevents.features.tickets
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.uniquindio.unityevents.domain.model.Ticket
@@ -21,24 +22,27 @@ data class QrScannerUiState(
 )
 
 /**
- * ViewModel del escaner de QR. Cuando la Screen detecta un codigo, llama a [onScanned]
- * para validar el ticket contra Firestore y marcarlo como usado.
+ * ViewModel del escaner de QR del **organizador del evento**. Recibe como argumento el
+ * `eventId` contra el cual validar. Si el QR escaneado pertenece a otro evento, se
+ * rechaza con un mensaje claro.
  */
 @HiltViewModel
 class QrScannerViewModel @Inject constructor(
+    savedState: SavedStateHandle,
     private val ticketsRepository: TicketsRepository
 ) : ViewModel() {
+
+    /** Id del evento desde el que se esta escaneando (pasado via argumento de navegacion). */
+    private val eventId: String = checkNotNull(savedState.get<String>("eventId")) {
+        "QrScannerScreen requiere el argumento 'eventId'."
+    }
 
     private val _state = MutableStateFlow(QrScannerUiState())
     val state: StateFlow<QrScannerUiState> = _state.asStateFlow()
 
-    /** Evita procesar el mismo QR multiples veces seguidas. */
+    /** Evita procesar el mismo QR multiples veces seguidas (loop de deteccion). */
     private var lastProcessedPayload: String? = null
 
-    /**
-     * Invocado desde la Screen al detectar un payload valido. Si el payload es el
-     * mismo que el ultimo procesado, se ignora (evita loops).
-     */
     fun onScanned(payload: String) {
         if (payload.isBlank() || payload == lastProcessedPayload) return
         if (_state.value.isValidating) return
@@ -46,18 +50,14 @@ class QrScannerViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update {
-                it.copy(
-                    isValidating = true,
-                    errorMessage = null,
-                    lastScannedTicket = null,
-                    wasAlreadyUsed = false
-                )
+                it.copy(isValidating = true, errorMessage = null, lastScannedTicket = null, wasAlreadyUsed = false)
             }
-            ticketsRepository.markTicketUsed(payload).fold(
+
+            ticketsRepository.markTicketUsed(payload, expectedEventId = eventId).fold(
                 onSuccess = { ticket ->
-                    val wasPreviouslyUsed = ticket.isUsed && lastProcessedPayload == payload &&
-                        _state.value.lastScannedTicket == null &&
-                        // Si la fecha de uso es muy reciente significa que lo acabamos de marcar ahora.
+                    // Si `usedAt` ya existia antes de este escaneo, el repo lo devuelve sin cambios.
+                    // Heuristica: si `usedAt` tiene > 5s de antiguedad, fue validado previamente.
+                    val wasPreviouslyUsed = ticket.isUsed &&
                         (System.currentTimeMillis() - (ticket.usedAt?.time ?: 0L)) > 5_000L
                     _state.update {
                         it.copy(
@@ -69,17 +69,13 @@ class QrScannerViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _state.update {
-                        it.copy(
-                            isValidating = false,
-                            errorMessage = e.message ?: "QR invalido."
-                        )
+                        it.copy(isValidating = false, errorMessage = e.message ?: "QR invalido.")
                     }
                 }
             )
         }
     }
 
-    /** Permite volver a escanear el mismo payload (tras mostrar el resultado). */
     fun onDismissResult() {
         _state.update { QrScannerUiState() }
         lastProcessedPayload = null
