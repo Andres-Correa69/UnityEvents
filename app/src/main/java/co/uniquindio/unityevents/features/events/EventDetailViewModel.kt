@@ -35,7 +35,10 @@ data class EventDetailUiState(
     val isSubmittingComment: Boolean = false,
     // Estado de la compra de ticket.
     val isPurchasing: Boolean = false,
-    val purchasedTicketId: String? = null
+    val purchasedTicketId: String? = null,
+    // Estado de eliminacion (creador o moderador).
+    val isDeleting: Boolean = false,
+    val deleted: Boolean = false
 )
 
 /**
@@ -153,5 +156,62 @@ class EventDetailViewModel @Inject constructor(
 
     fun onErrorConsumed() {
         _formState.update { it.copy(errorMessage = null) }
+    }
+
+    // --- Eliminacion del evento -------------------------------------------------
+
+    /**
+     * Elimina el evento (accion del organizador). La regla Firestore valida que el
+     * usuario sea el dueno; aqui solo gateamos la UI para no mostrar el boton a otros.
+     */
+    fun onDeleteByOwnerClick() {
+        val snap = state.value
+        val event = snap.event ?: return
+        val user = snap.currentUser ?: return
+        if (snap.isDeleting) return
+        // Doble verificacion: solo el organizador.
+        if (event.organizerId != user.uid) return
+
+        viewModelScope.launch {
+            _formState.update { it.copy(isDeleting = true) }
+            eventsRepository.deleteEvent(event.id)
+                .onSuccess {
+                    _formState.update { it.copy(isDeleting = false, deleted = true) }
+                }
+                .onFailure { e ->
+                    _formState.update {
+                        it.copy(
+                            isDeleting = false,
+                            errorMessage = e.message ?: "No se pudo eliminar el evento."
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
+     * Elimina el evento como moderador y envia notificacion al creador con [reason].
+     * La razon es obligatoria desde la UI; aqui la pasamos tal cual.
+     */
+    fun onDeleteByModeratorClick(reason: String) {
+        val snap = state.value
+        val event = snap.event ?: return
+        if (snap.isDeleting) return
+
+        viewModelScope.launch {
+            _formState.update { it.copy(isDeleting = true) }
+            eventsRepository.deleteEventByModerator(event.id, reason.trim())
+                .onSuccess {
+                    _formState.update { it.copy(isDeleting = false, deleted = true) }
+                }
+                .onFailure { e ->
+                    _formState.update {
+                        it.copy(
+                            isDeleting = false,
+                            errorMessage = e.message ?: "No se pudo eliminar el evento."
+                        )
+                    }
+                }
+        }
     }
 }

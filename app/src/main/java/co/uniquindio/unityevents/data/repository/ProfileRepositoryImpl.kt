@@ -94,6 +94,27 @@ class ProfileRepositoryImpl @Inject constructor(
         url
     }
 
+    override suspend fun saveFcmToken(token: String): Result<Unit> = runCatching {
+        val uid = firebaseAuth.currentUser?.uid ?: return@runCatching
+        // arrayUnion garantiza idempotencia: si el token ya esta, no se duplica.
+        firestore.collection("users").document(uid)
+            .set(
+                mapOf("fcmTokens" to com.google.firebase.firestore.FieldValue.arrayUnion(token)),
+                SetOptions.merge()
+            )
+            .await()
+    }
+
+    override suspend fun removeFcmToken(token: String): Result<Unit> = runCatching {
+        val uid = firebaseAuth.currentUser?.uid ?: return@runCatching
+        firestore.collection("users").document(uid)
+            .set(
+                mapOf("fcmTokens" to com.google.firebase.firestore.FieldValue.arrayRemove(token)),
+                SetOptions.merge()
+            )
+            .await()
+    }
+
     // -------------------------------------------------------------------------
     // Helpers privados
     // -------------------------------------------------------------------------

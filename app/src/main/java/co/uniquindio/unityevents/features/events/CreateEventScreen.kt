@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -43,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -87,25 +89,33 @@ import java.util.Calendar
 import java.util.Date
 
 /**
- * Pantalla de creacion de evento. Incluye seleccion de imagen, fecha/hora y todos los
- * campos requeridos. Al enviar, el evento se crea con status PENDING y queda a la espera
- * de aprobacion por un moderador.
+ * Pantalla de creacion / edicion de evento. Incluye seleccion de imagen, fecha/hora y todos
+ * los campos requeridos. En modo creacion el evento queda en status PENDING. En modo edicion
+ * solo se actualizan los campos editables (status y attendeesCount se preservan).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun CreateEventScreen(
     onBack: () -> Unit,
-    onCreated: (eventId: String) -> Unit,
+    onSaved: (eventId: String) -> Unit,
     viewModel: CreateEventViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Navegacion a detalle al crearse.
-    LaunchedEffect(state.createdEventId) {
-        state.createdEventId?.let {
-            viewModel.onCreatedConsumed()
-            onCreated(it)
+    // Snackbar de estado de la IA (verificacion exitosa o fail-open). Se muestra ANTES de
+    // la navegacion, asi el usuario alcanza a verlo durante el upload del evento.
+    LaunchedEffect(state.moderationStatusMessage) {
+        state.moderationStatusMessage?.let {
+            snackbarHostState.showSnackbar(message = it, duration = SnackbarDuration.Short)
+            viewModel.onModerationStatusConsumed()
+        }
+    }
+    // Navegacion a detalle al crearse / actualizarse el evento.
+    LaunchedEffect(state.savedEventId) {
+        state.savedEventId?.let {
+            viewModel.onSavedConsumed()
+            onSaved(it)
         }
     }
     // Muestra snackbar con errores.
@@ -128,7 +138,7 @@ fun CreateEventScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear evento") },
+                title = { Text(if (state.isEditMode) "Editar evento" else "Crear evento") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atras")
@@ -164,15 +174,21 @@ fun CreateEventScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                if (state.imageUri != null) {
-                    AsyncImage(
+                // Prioridad: imagen recien elegida > imagen existente (edicion) > placeholder.
+                when {
+                    state.imageUri != null -> AsyncImage(
                         model = state.imageUri,
                         contentDescription = "Imagen del evento",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    !state.existingImageUrl.isNullOrBlank() -> AsyncImage(
+                        model = state.existingImageUrl,
+                        contentDescription = "Imagen del evento",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Filled.Image, null, tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(40.dp))
                         Text("Toca para elegir una imagen",
@@ -290,17 +306,83 @@ fun CreateEventScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 if (state.isSubmitting) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    // Mientras Gemini analiza el contenido mostramos el spinner junto al
+                    // texto "Verificando contenido..." para que el usuario sepa que pasa.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        if (state.isModerating) {
+                            Spacer(Modifier.size(10.dp))
+                            Text(
+                                "Verificando contenido...",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 } else {
-                    Text("Publicar evento", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (state.isEditMode) "Guardar cambios" else "Publicar evento",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
             Spacer(Modifier.height(32.dp))
         }
+    }
+
+    // --- Dialogo: la IA bloqueo el contenido. El usuario debe editar antes de reintentar. ---
+    state.moderationBlock?.let { block ->
+        AlertDialog(
+            onDismissRequest = { viewModel.onModerationBlockDismissed() },
+            icon = {
+                Icon(
+                    Icons.Filled.Shield,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Contenido no permitido") },
+            text = {
+                Column {
+                    Text(
+                        "La IA detecto contenido que no cumple los lineamientos:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    if (block.reasons.isEmpty()) {
+                        Text(
+                            "• Contenido inapropiado",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        block.reasons.forEach { reason ->
+                            Text(
+                                "• $reason",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Edita tu publicacion antes de intentar publicarla de nuevo.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.onModerationBlockDismissed() },
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    Text("Editar publicacion")
+                }
+            }
+        )
     }
 
     // --- Dialogo de fecha ---

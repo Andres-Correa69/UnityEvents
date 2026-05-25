@@ -153,11 +153,65 @@ class EventsRepositoryImpl @Inject constructor(
         ).await()
     }
 
+    override suspend fun updateEvent(event: Event, imageUri: android.net.Uri?): Result<Unit> =
+        runCatching {
+            val id = event.id
+            require(id.isNotBlank()) { "El id del evento es obligatorio para actualizar." }
+
+            // Si el usuario adjunto nueva foto, la subimos y reemplazamos la URL existente.
+            val finalImageUrl: String = if (imageUri != null) {
+                val ref = storage.reference.child("events/${event.organizerId}/$id.jpg")
+                ref.putFile(imageUri).await()
+                ref.downloadUrl.await().toString()
+            } else event.imageUrl
+
+            // Solo escribimos los campos editables — NO tocamos status, organizerId,
+            // attendeesCount ni createdAt para no romper el flujo de moderacion ni el
+            // contador denormalizado de asistentes.
+            val update = mapOf(
+                "title" to event.title,
+                "description" to event.description,
+                "category" to event.category,
+                "placeName" to event.placeName,
+                "address" to event.address,
+                "latitude" to event.latitude,
+                "longitude" to event.longitude,
+                "startDate" to event.startDate,
+                "endDate" to event.endDate,
+                "price" to event.price,
+                "capacity" to event.capacity,
+                "imageUrl" to finalImageUrl
+            )
+            collection.document(id).set(update, SetOptions.merge()).await()
+        }
+
     override suspend fun deleteEvent(eventId: String): Result<Unit> = runCatching {
         collection.document(eventId).delete().await()
         // En Fase B no borramos las subcolecciones (Firestore no tiene cascade).
         // Un Cloud Function podria limpiarlas, pero queda fuera del alcance aqui.
     }
+
+    override suspend fun deleteEventByModerator(eventId: String, reason: String): Result<Unit> =
+        runCatching {
+            // Leemos el evento ANTES de borrarlo para conocer organizador + titulo y poder
+            // notificar al creador con un mensaje significativo.
+            val snap = collection.document(eventId).get().await()
+            val organizerId = snap.getString("organizerId").orEmpty()
+            val title = snap.getString("title").orEmpty()
+
+            collection.document(eventId).delete().await()
+
+            // Notifica al organizador (efecto colateral: si falla, el borrado ya esta hecho).
+            if (organizerId.isNotBlank()) {
+                createEventNotification(
+                    userId = organizerId,
+                    type = NotificationType.EVENT_REMOVED,
+                    title = "Tu evento fue retirado",
+                    body = "Un moderador retiro \"$title\". Motivo: ${reason.ifBlank { "No especificado." }}",
+                    relatedId = eventId
+                )
+            }
+        }
 
     private companion object {
         const val EVENTS = "events"

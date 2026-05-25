@@ -17,12 +17,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,12 +41,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +67,7 @@ import co.uniquindio.unityevents.core.component.UserAvatar
 import co.uniquindio.unityevents.core.utils.Formatters
 import co.uniquindio.unityevents.domain.model.Comment
 import co.uniquindio.unityevents.domain.model.Event
+import co.uniquindio.unityevents.domain.model.UserRole
 
 /**
  * Detalle de un evento: imagen, meta-informacion, descripcion, comentarios y boton para
@@ -71,6 +79,7 @@ fun EventDetailScreen(
     onBack: () -> Unit,
     onTicketPurchased: (ticketId: String) -> Unit,
     onScanTickets: () -> Unit,
+    onEditEvent: (eventId: String) -> Unit,
     viewModel: EventDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -82,6 +91,11 @@ fun EventDetailScreen(
             viewModel.onPurchaseConsumed()
             onTicketPurchased(it)
         }
+    }
+    // Si el evento fue eliminado (por el creador o por un moderador), salimos de la pantalla
+    // para evitar mostrar un detalle vacio.
+    LaunchedEffect(state.deleted) {
+        if (state.deleted) onBack()
     }
     // Muestra errores como snackbar.
     LaunchedEffect(state.errorMessage) {
@@ -123,7 +137,10 @@ fun EventDetailScreen(
                 onCommentTextChange = viewModel::onCommentTextChange,
                 onCommentRatingChange = viewModel::onCommentRatingChange,
                 onSubmitComment = viewModel::onSubmitComment,
-                onScanTickets = onScanTickets
+                onScanTickets = onScanTickets,
+                onEditEvent = { onEditEvent(state.event!!.id) },
+                onDeleteByOwner = viewModel::onDeleteByOwnerClick,
+                onDeleteByModerator = viewModel::onDeleteByModeratorClick
             )
         }
     }
@@ -138,11 +155,21 @@ private fun EventDetailContent(
     onCommentRatingChange: (Int) -> Unit,
     onSubmitComment: () -> Unit,
     onScanTickets: () -> Unit,
+    onEditEvent: () -> Unit,
+    onDeleteByOwner: () -> Unit,
+    onDeleteByModerator: (reason: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     // El organizador es quien valida tickets con el escaner, por eso el boton solo aparece
     // si el usuario actual creo el evento.
     val isOrganizer = state.currentUser?.uid == event.organizerId && event.organizerId.isNotBlank()
+    // Los moderadores pueden retirar cualquier evento (con razon) aunque no sean el creador.
+    val isModerator = state.currentUser?.role == UserRole.MODERATOR ||
+        state.currentUser?.role == UserRole.ADMIN
+
+    // Dialogos locales: confirmar borrado propio y capturar razon del moderador.
+    var showOwnerDeleteDialog by remember { mutableStateOf(false) }
+    var showModeratorDeleteDialog by remember { mutableStateOf(false) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -244,6 +271,42 @@ private fun EventDetailContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                // Acciones del organizador sobre su propio evento: editar y eliminar.
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = onEditEvent,
+                        enabled = !state.isDeleting,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        Icon(Icons.Filled.Edit, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.size(6.dp))
+                        Text("Editar")
+                    }
+                    OutlinedButton(
+                        onClick = { showOwnerDeleteDialog = true },
+                        enabled = !state.isDeleting,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        if (state.isDeleting) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.error,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        } else {
+                            Icon(Icons.Filled.Delete, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.size(6.dp))
+                            Text("Eliminar")
+                        }
+                    }
+                }
             } else {
                 // Boton publico: obtener ticket.
                 Button(
@@ -265,6 +328,34 @@ private fun EventDetailContent(
                         Icon(Icons.Filled.ConfirmationNumber, contentDescription = null)
                         Spacer(Modifier.size(8.dp))
                         Text("Obtener ticket", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+
+                // Accion exclusiva del moderador (cuando NO es el creador): retirar el
+                // evento de la plataforma con una razon que llega al organizador como alerta.
+                if (isModerator) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { showModeratorDeleteDialog = true },
+                        enabled = !state.isDeleting,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        if (state.isDeleting) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.error,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        } else {
+                            Icon(Icons.Filled.Gavel, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.size(8.dp))
+                            Text("Retirar evento (moderador)",
+                                style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }
@@ -326,6 +417,68 @@ private fun EventDetailContent(
             }
             Spacer(Modifier.height(32.dp))
         }
+    }
+
+    // --- Dialogo: confirmar eliminacion por el creador ---
+    if (showOwnerDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showOwnerDeleteDialog = false },
+            title = { Text("Eliminar evento") },
+            text = {
+                Text(
+                    "Esta accion eliminara \"${event.title}\" de forma permanente. " +
+                        "Los asistentes ya no podran verlo. Esta accion no se puede deshacer."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showOwnerDeleteDialog = false
+                        onDeleteByOwner()
+                    }
+                ) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOwnerDeleteDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    // --- Dialogo: capturar razon del retiro por moderador ---
+    if (showModeratorDeleteDialog) {
+        var reason by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showModeratorDeleteDialog = false },
+            title = { Text("Retirar evento") },
+            text = {
+                Column {
+                    Text(
+                        "Esta accion eliminara \"${event.title}\" de la plataforma y enviara " +
+                            "una alerta al organizador con la razon."
+                    )
+                    Spacer(Modifier.size(12.dp))
+                    OutlinedTextField(
+                        value = reason,
+                        onValueChange = { reason = it },
+                        label = { Text("Motivo del retiro") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = reason.isNotBlank(),
+                    onClick = {
+                        showModeratorDeleteDialog = false
+                        onDeleteByModerator(reason)
+                    }
+                ) { Text("Retirar", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showModeratorDeleteDialog = false }) { Text("Cancelar") }
+            }
+        )
     }
 }
 

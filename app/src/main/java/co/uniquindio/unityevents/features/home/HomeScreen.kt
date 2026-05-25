@@ -243,6 +243,14 @@ private fun FilterChipsRow(
     selected: HomeFilter,
     onSelect: (HomeFilter) -> Unit
 ) {
+    // Fondo blanco para chips no seleccionados (consistente con la barra de busqueda
+    // de arriba); cuando estan seleccionados toman el color primario de la marca.
+    val chipColors = FilterChipDefaults.filterChipColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        labelColor = MaterialTheme.colorScheme.onSurface,
+        selectedContainerColor = MaterialTheme.colorScheme.primary,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -253,29 +261,20 @@ private fun FilterChipsRow(
             selected = selected is HomeFilter.All,
             onClick = { onSelect(HomeFilter.All) },
             label = { Text("Todos") },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-            )
+            colors = chipColors
         )
         FilterChip(
             selected = selected is HomeFilter.Mine,
             onClick = { onSelect(HomeFilter.Mine) },
             label = { Text("Mis eventos") },
-            colors = FilterChipDefaults.filterChipColors(
-                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-            )
+            colors = chipColors
         )
         HomeFilter.CATEGORIES.forEach { cat ->
             FilterChip(
                 selected = (selected as? HomeFilter.Category)?.name == cat,
                 onClick = { onSelect(HomeFilter.Category(cat)) },
                 label = { Text(cat) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                )
+                colors = chipColors
             )
         }
     }

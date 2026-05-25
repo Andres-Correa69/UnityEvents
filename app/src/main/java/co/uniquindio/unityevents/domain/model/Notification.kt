@@ -31,6 +31,8 @@ enum class NotificationType {
     EVENT_APPROVED,
     /** Evento rechazado. */
     EVENT_REJECTED,
+    /** Evento eliminado por un moderador (incluye razon en el body). */
+    EVENT_REMOVED,
     /** Recordatorio: un evento al que asiste esta por empezar. */
     EVENT_REMINDER,
     /** Nuevo comentario en un evento del que el usuario es organizador. */

@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">UnityEvents</string>
+
+    <!-- ID del canal por defecto de notificaciones (FCM). Debe coincidir con el canal
+         creado en UnityEventsApp.onCreate(). -->
+    <string name="fcm_default_channel_id" translatable="false">unityevents_default</string>
+    <string name="fcm_default_channel_name">Alertas de UnityEvents</string>
+    <string name="fcm_default_channel_description">Notificaciones de eventos, comentarios y moderacion.</string>
 </resources>

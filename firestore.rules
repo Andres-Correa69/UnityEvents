@@ -41,6 +41,8 @@ service cloud.firestore {
       // campos de reputacion (points, level, updatedAt). Esto permite que el sistema
       // de puntos se autoajuste cuando un usuario comenta tu evento, escanea tu ticket,
       // aprueba tu evento, etc. No pueden tocar displayName, role, email, etc.
+      // Nota: el dueno tambien gestiona su array `fcmTokens` (push notifications), lo
+      // cual ya esta cubierto por isSelf(userId).
       allow update: if isSelf(userId)
         || isModerator()
         || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys()

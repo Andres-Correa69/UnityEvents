@@ -37,6 +37,22 @@ interface EventsRepository {
     /** Cambia el estado de un evento (para moderadores). */
     suspend fun updateStatus(eventId: String, status: EventStatus, rejectionReason: String? = null): Result<Unit>
 
+    /**
+     * Actualiza los campos editables de un evento (titulo, descripcion, ubicacion, fecha,
+     * precio, capacidad, imagen). NO modifica status, organizerId, attendeesCount ni
+     * createdAt para preservar el estado de moderacion y los contadores.
+     *
+     * Si [imageUri] != null, sube la nueva imagen a Storage y reemplaza imageUrl.
+     * Solo el organizador del evento puede invocarla (la regla Firestore lo valida).
+     */
+    suspend fun updateEvent(event: Event, imageUri: android.net.Uri?): Result<Unit>
+
     /** Elimina un evento y todas sus subcolecciones (comentarios). */
     suspend fun deleteEvent(eventId: String): Result<Unit>
+
+    /**
+     * Elimina un evento como moderador. Antes de borrar lee organizador y titulo, y al
+     * terminar crea una notificacion al organizador explicando la razon del retiro.
+     */
+    suspend fun deleteEventByModerator(eventId: String, reason: String): Result<Unit>
 }

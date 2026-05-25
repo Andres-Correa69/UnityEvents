@@ -7,4 +7,6 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Fondo del adaptive icon (mipmap-anydpi/ic_launcher.xml) — blanco como el logo. -->
+    <color name="ic_launcher_background">#FFFFFFFF</color>
 </resources>

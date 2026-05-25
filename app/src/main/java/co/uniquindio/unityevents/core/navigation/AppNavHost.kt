@@ -135,7 +135,7 @@ private fun NavGraphBuilder.mainGraph(
             )
         }
 
-        // --- Detalle / creacion de eventos ---
+        // --- Detalle / creacion / edicion de eventos ---
         composable(
             route = AppDestinations.EVENT_DETAIL,
             arguments = listOf(navArgument("eventId") { type = NavType.StringType })
@@ -148,16 +148,31 @@ private fun NavGraphBuilder.mainGraph(
                         popUpTo(AppDestinations.HOME)
                     }
                 },
-                onScanTickets = { navController.navigate(AppDestinations.qrScanner(eventId)) }
+                onScanTickets = { navController.navigate(AppDestinations.qrScanner(eventId)) },
+                onEditEvent = { id -> navController.navigate(AppDestinations.editEvent(id)) }
             )
         }
         composable(AppDestinations.CREATE_EVENT) {
             CreateEventScreen(
                 onBack = { navController.popBackStack() },
-                onCreated = { eventId ->
+                onSaved = { eventId ->
                     navController.navigate(AppDestinations.eventDetail(eventId)) {
                         popUpTo(AppDestinations.HOME)
                     }
+                }
+            )
+        }
+        composable(
+            route = AppDestinations.EDIT_EVENT,
+            arguments = listOf(navArgument("eventId") { type = NavType.StringType })
+        ) {
+            // CreateEventScreen detecta el argumento eventId via SavedStateHandle del ViewModel
+            // y entra en modo edicion automaticamente.
+            CreateEventScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = {
+                    // Tras guardar cambios, volvemos al detalle (que ya esta en la pila).
+                    navController.popBackStack()
                 }
             )
         }

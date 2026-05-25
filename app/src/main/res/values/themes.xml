@@ -6,10 +6,26 @@
     `UnityEventsTheme` en core/theme/Theme.kt.
 -->
 <resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Tema principal (post-splash). -->
     <style name="Theme.UnityEvents" parent="android:Theme.Material.Light.NoActionBar">
         <!-- Status bar transparente: Compose controla su apariencia con insets. -->
         <item name="android:statusBarColor" tools:targetApi="21">@android:color/transparent</item>
         <item name="android:windowLightStatusBar" tools:targetApi="23">true</item>
         <item name="android:navigationBarColor" tools:targetApi="21">@android:color/transparent</item>
+    </style>
+
+    <!--
+        Tema Splash con la API de androidx.core.splashscreen — soporte unificado para
+        Android 12+ (nativo) y backport en versiones anteriores.
+
+        - windowSplashScreenBackground: blanco, igual que el fondo del logo.
+        - windowSplashScreenAnimatedIcon: el logo de UnityEvents.
+        - postSplashScreenTheme: a que tema saltar despues del splash (el normal).
+    -->
+    <style name="Theme.UnityEvents.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.UnityEvents</item>
     </style>
 </resources>

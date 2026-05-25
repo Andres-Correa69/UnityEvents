@@ -157,6 +157,7 @@ private fun NotificationRow(notification: Notification, onClick: () -> Unit) {
 private fun iconFor(type: NotificationType): Pair<ImageVector, androidx.compose.ui.graphics.Color> = when (type) {
     NotificationType.EVENT_APPROVED -> Icons.Filled.CheckCircle to MaterialTheme.colorScheme.primary
     NotificationType.EVENT_REJECTED -> Icons.Filled.Cancel to MaterialTheme.colorScheme.error
+    NotificationType.EVENT_REMOVED -> Icons.Filled.Cancel to MaterialTheme.colorScheme.error
     NotificationType.EVENT_REMINDER -> Icons.Filled.Event to MaterialTheme.colorScheme.primary
     NotificationType.NEW_COMMENT -> Icons.Filled.Comment to MaterialTheme.colorScheme.primary
     NotificationType.TICKET_PURCHASED -> Icons.Filled.ConfirmationNumber to MaterialTheme.colorScheme.primary

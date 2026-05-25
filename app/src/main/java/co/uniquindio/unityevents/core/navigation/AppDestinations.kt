@@ -28,6 +28,10 @@ object AppDestinations {
 
     const val CREATE_EVENT = "create_event"
 
+    // Editar evento existente. Reusa la pantalla de creacion pero con argumento eventId.
+    const val EDIT_EVENT = "edit_event/{eventId}"
+    fun editEvent(id: String) = "edit_event/$id"
+
     const val TICKET_DIGITAL = "ticket_digital/{ticketId}"
     fun ticketDigital(id: String) = "ticket_digital/$id"
 

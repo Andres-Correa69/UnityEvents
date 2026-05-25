@@ -2,6 +2,12 @@ package co.uniquindio.unityevents.core.di
 
 import android.content.Context
 import androidx.credentials.CredentialManager
+import co.uniquindio.unityevents.BuildConfig
+import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.BlockThreshold
+import com.google.ai.client.generativeai.type.HarmCategory
+import com.google.ai.client.generativeai.type.SafetySetting
+import com.google.ai.client.generativeai.type.generationConfig
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -54,4 +60,38 @@ object AppModule {
     fun provideCredentialManager(
         @ApplicationContext context: Context
     ): CredentialManager = CredentialManager.create(context)
+
+    /**
+     * Modelo Gemini usado por el servicio de moderacion de contenido. Configuracion:
+     *
+     * - `gemini-2.5-flash`: rapido y multimodal (texto + imagen), incluido en el free tier.
+     *   IMPORTANTE: gemini-1.5-flash fue retirado en sept/2025; gemini-2.0-flash cierra el
+     *   1 de junio de 2026. Si vuelve a fallar con 404, revisar
+     *   https://ai.google.dev/gemini-api/docs/models y actualizar al modelo vigente.
+     * - `responseMimeType = application/json`: forzamos respuesta JSON pura para parsear sin
+     *   ambiguedades.
+     * - `temperature = 0.2`: baja para clasificacion (queremos consistencia, no creatividad).
+     * - Safety settings en NONE: el modelo por defecto BLOQUEA su respuesta cuando detecta
+     *   contenido ofensivo en la entrada — pero nosotros QUEREMOS que lo analice y clasifique
+     *   (no que se rehuse a responder), por eso bajamos los filtros. La moderacion la hace
+     *   nuestro propio prompt, no la heuristica interna de Gemini.
+     *
+     * Requiere `GEMINI_API_KEY` en local.properties (ver app/build.gradle.kts).
+     */
+    @Provides
+    @Singleton
+    fun provideGenerativeModel(): GenerativeModel = GenerativeModel(
+        modelName = "gemini-2.5-flash",
+        apiKey = BuildConfig.GEMINI_API_KEY,
+        generationConfig = generationConfig {
+            responseMimeType = "application/json"
+            temperature = 0.2f
+        },
+        safetySettings = listOf(
+            SafetySetting(HarmCategory.HARASSMENT, BlockThreshold.NONE),
+            SafetySetting(HarmCategory.HATE_SPEECH, BlockThreshold.NONE),
+            SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.NONE),
+            SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.NONE)
+        )
+    )
 }

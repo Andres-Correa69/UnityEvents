@@ -14,6 +14,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
+    <!-- Notificaciones push (FCM). Requerido a partir de Android 13 (API 33). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".UnityEventsApp"
         android:allowBackup="true"
@@ -31,10 +34,29 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
 
+        <!-- Canal por defecto de FCM. Notificaciones que no traen channel_id explicito caen aqui. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/fcm_default_channel_id" />
+
+        <!-- Servicio de FCM: escucha tokens y mensajes entrantes. -->
+        <service
+            android:name=".core.service.UnityEventsFcmService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!--
+            La Activity arranca con el tema Splash (Theme.UnityEvents.Splash) que muestra
+            el logo sobre fondo blanco mientras Application se inicializa. Luego MainActivity
+            llama installSplashScreen() y cambia al tema normal Theme.UnityEvents.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.UnityEvents">
+            android:theme="@style/Theme.UnityEvents.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

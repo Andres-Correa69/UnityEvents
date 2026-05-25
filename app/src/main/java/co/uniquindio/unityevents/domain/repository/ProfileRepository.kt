@@ -29,4 +29,17 @@ interface ProfileRepository {
      * - Campo `photoUrl` en `/users/{uid}`
      */
     suspend fun updatePhoto(imageUri: Uri): Result<String>
+
+    /**
+     * Agrega un FCM token al array `fcmTokens` del usuario actual (idempotente, usa
+     * arrayUnion). Las Cloud Functions leen este array para enviar push notifications.
+     * No-op si no hay usuario logueado.
+     */
+    suspend fun saveFcmToken(token: String): Result<Unit>
+
+    /**
+     * Quita un FCM token del array. Util cuando el token deja de ser valido (logout o
+     * desinstalacion en otro dispositivo).
+     */
+    suspend fun removeFcmToken(token: String): Result<Unit>
 }

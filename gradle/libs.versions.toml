@@ -51,6 +51,12 @@ mapsCompose = "4.4.1"                # Integracion Maps SDK + Jetpack Compose
 playServicesMaps = "19.0.0"
 playServicesLocation = "21.3.0"      # FusedLocationProvider para "Usar mi ubicacion"
 
+# --- Google AI (Gemini) — moderacion de contenido en eventos ---
+generativeAi = "0.9.0"               # SDK oficial de Kotlin/Android para Gemini API
+
+# --- Splash screen API (Android 12+ con fallback automatico) ---
+coreSplashscreen = "1.0.1"
+
 # --- Testing ---
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -92,6 +98,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 
 # --- Credential Manager + Google ID (flujo actual de Google Sign-In) ---
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
@@ -117,6 +124,12 @@ guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+
+# --- Google AI (Gemini) — moderacion de contenido en eventos ---
+generative-ai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeAi" }
+
+# --- Splash screen ---
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 
 # --- Testing ---
 junit = { group = "junit", name = "junit", version.ref = "junit" }
